@@ -1,8 +1,10 @@
 """Integration tests for RAG system end-to-end query flow"""
+
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-from rag_system import RAGSystem
 from config import Config
+from rag_system import RAGSystem
 from vector_store import SearchResults
 
 
@@ -26,26 +28,37 @@ class TestRAGSystemIntegration:
     @pytest.fixture
     def rag_system(self, mock_config):
         """Create RAG system with mocked components"""
-        with patch('rag_system.VectorStore'), \
-             patch('rag_system.AIGenerator'), \
-             patch('rag_system.DocumentProcessor'), \
-             patch('rag_system.SessionManager'):
+        with (
+            patch("rag_system.VectorStore"),
+            patch("rag_system.AIGenerator"),
+            patch("rag_system.DocumentProcessor"),
+            patch("rag_system.SessionManager"),
+        ):
             return RAGSystem(mock_config)
 
     def test_query_with_content_question(self, rag_system):
         """Test end-to-end query flow for content questions"""
         # Mock the AI generator to simulate tool calling
-        mock_ai_response = "Python is a high-level programming language known for its simplicity."
+        mock_ai_response = (
+            "Python is a high-level programming language known for its simplicity."
+        )
 
         rag_system.ai_generator.generate_response = Mock(return_value=mock_ai_response)
 
         # Mock tool manager to return sources
-        rag_system.tool_manager.get_last_sources = Mock(return_value=[
-            {"text": "Introduction to Python - Lesson 1", "url": "https://example.com/lesson1"}
-        ])
+        rag_system.tool_manager.get_last_sources = Mock(
+            return_value=[
+                {
+                    "text": "Introduction to Python - Lesson 1",
+                    "url": "https://example.com/lesson1",
+                }
+            ]
+        )
 
         # Execute query
-        response, sources = rag_system.query("What is Python?", session_id="test_session")
+        response, sources = rag_system.query(
+            "What is Python?", session_id="test_session"
+        )
 
         # Verify AI generator called with correct parameters
         call_args = rag_system.ai_generator.generate_response.call_args
@@ -84,16 +97,26 @@ class TestRAGSystemIntegration:
 
     def test_query_uses_conversation_history(self, rag_system):
         """Test that query includes conversation history from session"""
-        mock_history = "User: What is Python?\nAssistant: Python is a programming language."
+        mock_history = (
+            "User: What is Python?\nAssistant: Python is a programming language."
+        )
 
-        rag_system.session_manager.get_conversation_history = Mock(return_value=mock_history)
-        rag_system.ai_generator.generate_response = Mock(return_value="More details about Python...")
+        rag_system.session_manager.get_conversation_history = Mock(
+            return_value=mock_history
+        )
+        rag_system.ai_generator.generate_response = Mock(
+            return_value="More details about Python..."
+        )
         rag_system.tool_manager.get_last_sources = Mock(return_value=[])
 
-        response, sources = rag_system.query("Tell me more", session_id="existing_session")
+        response, sources = rag_system.query(
+            "Tell me more", session_id="existing_session"
+        )
 
         # Verify conversation history was retrieved
-        rag_system.session_manager.get_conversation_history.assert_called_once_with("existing_session")
+        rag_system.session_manager.get_conversation_history.assert_called_once_with(
+            "existing_session"
+        )
 
         # Verify history passed to AI generator
         call_args = rag_system.ai_generator.generate_response.call_args[1]
@@ -101,7 +124,9 @@ class TestRAGSystemIntegration:
 
     def test_query_updates_conversation_history(self, rag_system):
         """Test that query updates session history after getting response"""
-        rag_system.ai_generator.generate_response = Mock(return_value="Python is great!")
+        rag_system.ai_generator.generate_response = Mock(
+            return_value="Python is great!"
+        )
         rag_system.tool_manager.get_last_sources = Mock(return_value=[])
         rag_system.session_manager.get_conversation_history = Mock(return_value=None)
 
@@ -110,17 +135,15 @@ class TestRAGSystemIntegration:
 
         # Verify session was updated with exchange
         rag_system.session_manager.add_exchange.assert_called_once_with(
-            "test_session",
-            query_text,
-            "Python is great!"
+            "test_session", query_text, "Python is great!"
         )
 
     def test_query_resets_sources_after_retrieval(self, rag_system):
         """Test that sources are reset after being retrieved"""
         rag_system.ai_generator.generate_response = Mock(return_value="Answer")
-        rag_system.tool_manager.get_last_sources = Mock(return_value=[
-            {"text": "Source 1", "url": None}
-        ])
+        rag_system.tool_manager.get_last_sources = Mock(
+            return_value=[{"text": "Source 1", "url": None}]
+        )
         rag_system.tool_manager.reset_sources = Mock()
 
         response, sources = rag_system.query("Test")
@@ -183,10 +206,12 @@ class TestRAGSystemWithRealToolFlow:
     @pytest.fixture
     def rag_system_with_mocked_vector_store(self, mock_config):
         """Create RAG system with mocked vector store but real tool flow"""
-        with patch('rag_system.VectorStore') as MockVectorStore, \
-             patch('rag_system.AIGenerator') as MockAIGenerator, \
-             patch('rag_system.DocumentProcessor'), \
-             patch('rag_system.SessionManager'):
+        with (
+            patch("rag_system.VectorStore") as MockVectorStore,
+            patch("rag_system.AIGenerator") as MockAIGenerator,
+            patch("rag_system.DocumentProcessor"),
+            patch("rag_system.SessionManager"),
+        ):
 
             # Create the RAG system
             rag = RAGSystem(mock_config)
@@ -196,19 +221,23 @@ class TestRAGSystemWithRealToolFlow:
                 documents=["Python is a high-level programming language."],
                 metadata=[{"course_title": "Python 101", "lesson_number": 1}],
                 distances=[0.5],
-                error=None
+                error=None,
             )
             rag.vector_store.search = Mock(return_value=mock_search_results)
-            rag.vector_store.get_lesson_link = Mock(return_value="https://example.com/lesson1")
+            rag.vector_store.get_lesson_link = Mock(
+                return_value="https://example.com/lesson1"
+            )
 
             # Setup AI generator to simulate tool use
-            def mock_generate(query, conversation_history=None, tools=None, tool_manager=None):
+            def mock_generate(
+                query, conversation_history=None, tools=None, tool_manager=None
+            ):
                 if tool_manager and tools:
                     # Simulate AI deciding to use search tool
                     result = tool_manager.execute_tool(
                         "search_course_content",
                         query="Python basics",
-                        course_name="Python 101"
+                        course_name="Python 101",
                     )
                     # Return a response that synthesizes the search result
                     return "Based on the course material, Python is a high-level programming language."

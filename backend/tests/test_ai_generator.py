@@ -1,6 +1,8 @@
 """Tests for AIGenerator tool calling functionality"""
+
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
 from ai_generator import AIGenerator
 
 
@@ -10,7 +12,7 @@ class TestAIGenerator:
     @pytest.fixture
     def mock_anthropic_client(self):
         """Create a mock Anthropic client"""
-        with patch('ai_generator.anthropic.Anthropic') as mock:
+        with patch("ai_generator.anthropic.Anthropic") as mock:
             yield mock
 
     @pytest.fixture
@@ -35,9 +37,7 @@ class TestAIGenerator:
         ai_generator.client.messages.create = Mock(return_value=mock_response)
 
         result = ai_generator.generate_response(
-            query="What is 2+2?",
-            conversation_history=None,
-            tools=None
+            query="What is 2+2?", conversation_history=None, tools=None
         )
 
         # Verify correct API call
@@ -60,9 +60,7 @@ class TestAIGenerator:
         history = "User: Previous question\nAssistant: Previous answer"
 
         result = ai_generator.generate_response(
-            query="Follow-up question",
-            conversation_history=history,
-            tools=None
+            query="Follow-up question", conversation_history=history, tools=None
         )
 
         # Verify history is in system prompt
@@ -82,14 +80,11 @@ class TestAIGenerator:
             {
                 "name": "search_course_content",
                 "description": "Search for content",
-                "input_schema": {"type": "object", "properties": {}}
+                "input_schema": {"type": "object", "properties": {}},
             }
         ]
 
-        result = ai_generator.generate_response(
-            query="Search question",
-            tools=tools
-        )
+        result = ai_generator.generate_response(query="Search question", tools=tools)
 
         # Verify tools passed correctly
         call_args = ai_generator.client.messages.create.call_args[1]
@@ -111,7 +106,9 @@ class TestAIGenerator:
         # Final response after tool execution
         final_response = Mock()
         final_response.stop_reason = "end_turn"
-        final_response.content = [Mock(text="Based on the search results, Python is...")]
+        final_response.content = [
+            Mock(text="Based on the search results, Python is...")
+        ]
 
         ai_generator.client.messages.create = Mock(
             side_effect=[initial_response, final_response]
@@ -119,21 +116,19 @@ class TestAIGenerator:
 
         # Mock tool manager
         mock_tool_manager = Mock()
-        mock_tool_manager.execute_tool.return_value = "[Course: Python 101]\nPython is a programming language..."
+        mock_tool_manager.execute_tool.return_value = (
+            "[Course: Python 101]\nPython is a programming language..."
+        )
 
         tools = [{"name": "search_course_content"}]
 
         result = ai_generator.generate_response(
-            query="What is Python?",
-            tools=tools,
-            tool_manager=mock_tool_manager
+            query="What is Python?", tools=tools, tool_manager=mock_tool_manager
         )
 
         # Verify tool was executed
         mock_tool_manager.execute_tool.assert_called_once_with(
-            "search_course_content",
-            query="Python basics",
-            course_name="Python 101"
+            "search_course_content", query="Python basics", course_name="Python 101"
         )
 
         # Verify two API calls were made (tool use + natural completion)
@@ -148,16 +143,24 @@ class TestAIGenerator:
         round1_response = Mock()
         round1_response.stop_reason = "tool_use"
         round1_response.content = [
-            Mock(type="tool_use", id="t1", name="search_course_content",
-                 input={"query": "MCP"})
+            Mock(
+                type="tool_use",
+                id="t1",
+                name="search_course_content",
+                input={"query": "MCP"},
+            )
         ]
 
         # Round 2: Another tool use
         round2_response = Mock()
         round2_response.stop_reason = "tool_use"
         round2_response.content = [
-            Mock(type="tool_use", id="t2", name="search_course_content",
-                 input={"query": "MCP", "lesson_number": 2})
+            Mock(
+                type="tool_use",
+                id="t2",
+                name="search_course_content",
+                input={"query": "MCP", "lesson_number": 2},
+            )
         ]
 
         # Round 3: Final response (tools removed)
@@ -172,13 +175,13 @@ class TestAIGenerator:
         mock_tool_manager = Mock()
         mock_tool_manager.execute_tool.side_effect = [
             "Found MCP course",
-            "Lesson 2: Model Context Protocol implementation"
+            "Lesson 2: Model Context Protocol implementation",
         ]
 
         result = ai_generator.generate_response(
             query="What's in lesson 2 of MCP?",
             tools=[{"name": "search_course_content"}],
-            tool_manager=mock_tool_manager
+            tool_manager=mock_tool_manager,
         )
 
         # Verify: 3 API calls (round1, round2, final)
@@ -203,20 +206,34 @@ class TestAIGenerator:
     def test_max_rounds_enforced(self, ai_generator):
         """Test that system enforces maximum of 2 tool-calling rounds"""
         # Simulate Claude wanting 3 rounds (should be prevented)
-        round1 = Mock(stop_reason="tool_use", content=[
-            Mock(type="tool_use", id="t1", name="search_course_content", input={"query": "test1"})
-        ])
-        round2 = Mock(stop_reason="tool_use", content=[
-            Mock(type="tool_use", id="t2", name="search_course_content", input={"query": "test2"})
-        ])
-        # Round 3 should have no tools available - forced to respond
-        round3 = Mock(stop_reason="end_turn", content=[
-            Mock(type="text", text="Final answer")
-        ])
-
-        ai_generator.client.messages.create = Mock(
-            side_effect=[round1, round2, round3]
+        round1 = Mock(
+            stop_reason="tool_use",
+            content=[
+                Mock(
+                    type="tool_use",
+                    id="t1",
+                    name="search_course_content",
+                    input={"query": "test1"},
+                )
+            ],
         )
+        round2 = Mock(
+            stop_reason="tool_use",
+            content=[
+                Mock(
+                    type="tool_use",
+                    id="t2",
+                    name="search_course_content",
+                    input={"query": "test2"},
+                )
+            ],
+        )
+        # Round 3 should have no tools available - forced to respond
+        round3 = Mock(
+            stop_reason="end_turn", content=[Mock(type="text", text="Final answer")]
+        )
+
+        ai_generator.client.messages.create = Mock(side_effect=[round1, round2, round3])
 
         mock_tool_manager = Mock()
         mock_tool_manager.execute_tool.return_value = "Result"
@@ -224,7 +241,7 @@ class TestAIGenerator:
         result = ai_generator.generate_response(
             query="Complex query",
             tools=[{"name": "search_course_content"}],
-            tool_manager=mock_tool_manager
+            tool_manager=mock_tool_manager,
         )
 
         # Verify: Exactly 3 API calls (2 tool rounds + 1 final)
@@ -241,7 +258,12 @@ class TestAIGenerator:
         round1_response = Mock()
         round1_response.stop_reason = "tool_use"
         round1_response.content = [
-            Mock(type="tool_use", id="t1", name="search_course_content", input={"query": "test"})
+            Mock(
+                type="tool_use",
+                id="t1",
+                name="search_course_content",
+                input={"query": "test"},
+            )
         ]
 
         # Round 2: Natural completion (no more tools)
@@ -259,7 +281,7 @@ class TestAIGenerator:
         result = ai_generator.generate_response(
             query="Simple query",
             tools=[{"name": "search_course_content"}],
-            tool_manager=mock_tool_manager
+            tool_manager=mock_tool_manager,
         )
 
         # Verify: Only 2 API calls (no unnecessary third call)
@@ -273,12 +295,18 @@ class TestAIGenerator:
 
     def test_tools_available_in_both_rounds(self, ai_generator):
         """Verify tools are passed to API in round 1 and round 2"""
-        round1 = Mock(stop_reason="tool_use", content=[
-            Mock(type="tool_use", id="t1", name="search_course_content", input={})
-        ])
-        round2 = Mock(stop_reason="tool_use", content=[
-            Mock(type="tool_use", id="t2", name="search_course_content", input={})
-        ])
+        round1 = Mock(
+            stop_reason="tool_use",
+            content=[
+                Mock(type="tool_use", id="t1", name="search_course_content", input={})
+            ],
+        )
+        round2 = Mock(
+            stop_reason="tool_use",
+            content=[
+                Mock(type="tool_use", id="t2", name="search_course_content", input={})
+            ],
+        )
         round3 = Mock(stop_reason="end_turn", content=[Mock(type="text", text="Done")])
 
         ai_generator.client.messages.create = Mock(side_effect=[round1, round2, round3])
@@ -288,9 +316,7 @@ class TestAIGenerator:
         tools = [{"name": "search_course_content"}]
 
         ai_generator.generate_response(
-            query="Test",
-            tools=tools,
-            tool_manager=mock_tool_manager
+            query="Test", tools=tools, tool_manager=mock_tool_manager
         )
 
         # Verify: First API call includes tools
@@ -310,16 +336,22 @@ class TestAIGenerator:
 
     def test_context_preserved_across_rounds(self, ai_generator):
         """Test that message context accumulates correctly across rounds"""
-        round1 = Mock(stop_reason="tool_use", content=[
-            Mock(type="tool_use", id="t1", name="search_course_content", input={"query": "search1"})
-        ])
-        round2 = Mock(stop_reason="end_turn", content=[
-            Mock(type="text", text="Answer")
-        ])
-
-        ai_generator.client.messages.create = Mock(
-            side_effect=[round1, round2]
+        round1 = Mock(
+            stop_reason="tool_use",
+            content=[
+                Mock(
+                    type="tool_use",
+                    id="t1",
+                    name="search_course_content",
+                    input={"query": "search1"},
+                )
+            ],
         )
+        round2 = Mock(
+            stop_reason="end_turn", content=[Mock(type="text", text="Answer")]
+        )
+
+        ai_generator.client.messages.create = Mock(side_effect=[round1, round2])
 
         mock_tool_manager = Mock()
         mock_tool_manager.execute_tool.return_value = "Tool result"
@@ -327,7 +359,7 @@ class TestAIGenerator:
         ai_generator.generate_response(
             query="Test query",
             tools=[{"name": "search_course_content"}],
-            tool_manager=mock_tool_manager
+            tool_manager=mock_tool_manager,
         )
 
         # Check round 2 messages include full chain
@@ -342,22 +374,28 @@ class TestAIGenerator:
 
     def test_tool_execution_error_handling(self, ai_generator):
         """Test graceful handling of tool execution errors"""
-        round1 = Mock(stop_reason="tool_use", content=[
-            Mock(type="tool_use", id="t1", name="search_course_content", input={})
-        ])
-        round2 = Mock(stop_reason="end_turn", content=[
-            Mock(type="text", text="I encountered an error with the search")
-        ])
+        round1 = Mock(
+            stop_reason="tool_use",
+            content=[
+                Mock(type="tool_use", id="t1", name="search_course_content", input={})
+            ],
+        )
+        round2 = Mock(
+            stop_reason="end_turn",
+            content=[Mock(type="text", text="I encountered an error with the search")],
+        )
 
         ai_generator.client.messages.create = Mock(side_effect=[round1, round2])
 
         mock_tool_manager = Mock()
-        mock_tool_manager.execute_tool.side_effect = Exception("Database connection failed")
+        mock_tool_manager.execute_tool.side_effect = Exception(
+            "Database connection failed"
+        )
 
         result = ai_generator.generate_response(
             query="Test",
             tools=[{"name": "search_course_content"}],
-            tool_manager=mock_tool_manager
+            tool_manager=mock_tool_manager,
         )
 
         # Verify: Error was handled (didn't crash)

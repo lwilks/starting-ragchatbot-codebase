@@ -1,4 +1,5 @@
 """Shared pytest fixtures and configuration"""
+
 import sys
 from pathlib import Path
 
@@ -6,9 +7,10 @@ from pathlib import Path
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
-import pytest
 from unittest.mock import Mock
-from models import Course, Lesson, CourseChunk
+
+import pytest
+from models import Course, CourseChunk, Lesson
 from vector_store import SearchResults
 
 
@@ -23,19 +25,19 @@ def sample_course():
             Lesson(
                 lesson_number=1,
                 title="Getting Started",
-                lesson_link="https://example.com/python-course/lesson1"
+                lesson_link="https://example.com/python-course/lesson1",
             ),
             Lesson(
                 lesson_number=2,
                 title="Variables and Data Types",
-                lesson_link="https://example.com/python-course/lesson2"
+                lesson_link="https://example.com/python-course/lesson2",
             ),
             Lesson(
                 lesson_number=3,
                 title="Control Flow",
-                lesson_link="https://example.com/python-course/lesson3"
-            )
-        ]
+                lesson_link="https://example.com/python-course/lesson3",
+            ),
+        ],
     )
 
 
@@ -47,20 +49,20 @@ def sample_course_chunks():
             content="Course Introduction to Python Programming Lesson 1 content: Python is a high-level programming language.",
             course_title="Introduction to Python Programming",
             lesson_number=1,
-            chunk_index=0
+            chunk_index=0,
         ),
         CourseChunk(
             content="Python is known for its simple and readable syntax.",
             course_title="Introduction to Python Programming",
             lesson_number=1,
-            chunk_index=1
+            chunk_index=1,
         ),
         CourseChunk(
             content="Course Introduction to Python Programming Lesson 2 content: Variables store data values.",
             course_title="Introduction to Python Programming",
             lesson_number=2,
-            chunk_index=2
-        )
+            chunk_index=2,
+        ),
     ]
 
 
@@ -70,34 +72,29 @@ def sample_search_results():
     return SearchResults(
         documents=[
             "Python is a high-level programming language.",
-            "Variables store data values."
+            "Variables store data values.",
         ],
         metadata=[
             {
                 "course_title": "Introduction to Python Programming",
                 "lesson_number": 1,
-                "chunk_index": 0
+                "chunk_index": 0,
             },
             {
                 "course_title": "Introduction to Python Programming",
                 "lesson_number": 2,
-                "chunk_index": 2
-            }
+                "chunk_index": 2,
+            },
         ],
         distances=[0.45, 0.52],
-        error=None
+        error=None,
     )
 
 
 @pytest.fixture
 def sample_empty_results():
     """Create empty search results for testing"""
-    return SearchResults(
-        documents=[],
-        metadata=[],
-        distances=[],
-        error=None
-    )
+    return SearchResults(documents=[], metadata=[], distances=[], error=None)
 
 
 @pytest.fixture
@@ -107,7 +104,7 @@ def sample_error_results():
         documents=[],
         metadata=[],
         distances=[],
-        error="No course found matching 'NonExistent Course'"
+        error="No course found matching 'NonExistent Course'",
     )
 
 
@@ -123,19 +120,19 @@ def mock_tool_definitions():
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "What to search for in the course content"
+                        "description": "What to search for in the course content",
                     },
                     "course_name": {
                         "type": "string",
-                        "description": "Course title (partial matches work)"
+                        "description": "Course title (partial matches work)",
                     },
                     "lesson_number": {
                         "type": "integer",
-                        "description": "Specific lesson number to search within"
-                    }
+                        "description": "Specific lesson number to search within",
+                    },
                 },
-                "required": ["query"]
-            }
+                "required": ["query"],
+            },
         },
         {
             "name": "get_course_outline",
@@ -143,14 +140,11 @@ def mock_tool_definitions():
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "course_name": {
-                        "type": "string",
-                        "description": "Course title"
-                    }
+                    "course_name": {"type": "string", "description": "Course title"}
                 },
-                "required": ["course_name"]
-            }
-        }
+                "required": ["course_name"],
+            },
+        },
     ]
 
 
@@ -162,16 +156,29 @@ def sample_course_outline():
         "course_link": "https://example.com/python-course",
         "instructor": "Jane Doe",
         "lessons": [
-            {"lesson_number": 1, "lesson_title": "Getting Started", "lesson_link": "https://example.com/lesson1"},
-            {"lesson_number": 2, "lesson_title": "Variables and Data Types", "lesson_link": "https://example.com/lesson2"},
-            {"lesson_number": 3, "lesson_title": "Control Flow", "lesson_link": "https://example.com/lesson3"}
-        ]
+            {
+                "lesson_number": 1,
+                "lesson_title": "Getting Started",
+                "lesson_link": "https://example.com/lesson1",
+            },
+            {
+                "lesson_number": 2,
+                "lesson_title": "Variables and Data Types",
+                "lesson_link": "https://example.com/lesson2",
+            },
+            {
+                "lesson_number": 3,
+                "lesson_title": "Control Flow",
+                "lesson_link": "https://example.com/lesson3",
+            },
+        ],
     }
 
 
 @pytest.fixture
 def sample_anthropic_response():
     """Sample Anthropic API response structure"""
+
     class MockTextBlock:
         def __init__(self, text):
             self.text = text
@@ -192,5 +199,5 @@ def sample_anthropic_response():
     return {
         "MockTextBlock": MockTextBlock,
         "MockToolUseBlock": MockToolUseBlock,
-        "MockResponse": MockResponse
+        "MockResponse": MockResponse,
     }

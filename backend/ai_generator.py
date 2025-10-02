@@ -1,9 +1,11 @@
+from typing import Any, Dict, List, Optional
+
 import anthropic
-from typing import List, Optional, Dict, Any
+
 
 class AIGenerator:
     """Handles interactions with Anthropic's Claude API for generating responses"""
-    
+
     # Static system prompt to avoid rebuilding on each call
     SYSTEM_PROMPT = """ You are an AI assistant specialized in course materials and educational content with access to tools for course information.
 
@@ -43,22 +45,21 @@ All responses must be:
 4. **Example-supported** - Include relevant examples when they aid understanding
 Provide only the direct answer to what was asked.
 """
-    
+
     def __init__(self, api_key: str, model: str):
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = model
-        
+
         # Pre-build base API parameters
-        self.base_params = {
-            "model": self.model,
-            "temperature": 0,
-            "max_tokens": 800
-        }
-    
-    def generate_response(self, query: str,
-                         conversation_history: Optional[str] = None,
-                         tools: Optional[List] = None,
-                         tool_manager=None) -> str:
+        self.base_params = {"model": self.model, "temperature": 0, "max_tokens": 800}
+
+    def generate_response(
+        self,
+        query: str,
+        conversation_history: Optional[str] = None,
+        tools: Optional[List] = None,
+        tool_manager=None,
+    ) -> str:
         """
         Generate AI response with optional multi-round tool usage and conversation context.
 
@@ -109,7 +110,9 @@ Provide only the direct answer to what was asked.
                     if isinstance(result, dict) and result.get("is_error"):
                         # Termination: Tool execution error
                         # Make one final call to let Claude respond with error context
-                        final_response = self._make_api_call(messages, None, system_content)
+                        final_response = self._make_api_call(
+                            messages, None, system_content
+                        )
                         return final_response.content[0].text
 
             # Termination: Max rounds reached
@@ -120,9 +123,13 @@ Provide only the direct answer to what was asked.
 
         # Should never reach here due to explicit max rounds check
         return "Error: Unexpected flow termination"
-    
-    def _make_api_call(self, messages: List[Dict], tools: Optional[List] = None,
-                      system_content: str = ""):
+
+    def _make_api_call(
+        self,
+        messages: List[Dict],
+        tools: Optional[List] = None,
+        system_content: str = "",
+    ):
         """
         Make API call to Claude with given messages and optional tools.
 
@@ -137,7 +144,7 @@ Provide only the direct answer to what was asked.
         api_params = {
             **self.base_params,
             "messages": messages,
-            "system": system_content
+            "system": system_content,
         }
 
         if tools:
@@ -146,7 +153,9 @@ Provide only the direct answer to what was asked.
 
         return self.client.messages.create(**api_params)
 
-    def _process_tool_round(self, response, messages: List[Dict], tool_manager) -> List[Dict]:
+    def _process_tool_round(
+        self, response, messages: List[Dict], tool_manager
+    ) -> List[Dict]:
         """
         Process one round of tool execution and update message history.
 
@@ -159,10 +168,7 @@ Provide only the direct answer to what was asked.
             Updated message history with assistant response and tool results
         """
         # Add assistant's tool use response to messages
-        messages.append({
-            "role": "assistant",
-            "content": response.content
-        })
+        messages.append({"role": "assistant", "content": response.content})
 
         # Execute all tool calls
         tool_results = []
@@ -170,25 +176,26 @@ Provide only the direct answer to what was asked.
             if block.type == "tool_use":
                 try:
                     result = tool_manager.execute_tool(block.name, **block.input)
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": result
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": result,
+                        }
+                    )
                 except Exception as e:
                     # Handle tool execution errors gracefully
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": f"Error executing tool: {str(e)}",
-                        "is_error": True
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": f"Error executing tool: {str(e)}",
+                            "is_error": True,
+                        }
+                    )
 
         # Add tool results to messages
         if tool_results:
-            messages.append({
-                "role": "user",
-                "content": tool_results
-            })
+            messages.append({"role": "user", "content": tool_results})
 
         return messages
