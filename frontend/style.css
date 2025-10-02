@@ -85,6 +85,32 @@ header h1 {
     flex-shrink: 0;
 }
 
+/* New Chat Button */
+.new-chat-button {
+    width: 100%;
+    padding: 0.5rem 0;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
+
+.new-chat-button:focus {
+    outline: none;
+    color: var(--primary-color);
+}
+
+.new-chat-button:hover {
+    color: var(--primary-color);
+}
+
 /* Custom Scrollbar for Sidebar */
 .sidebar::-webkit-scrollbar {
     width: 8px;
@@ -241,8 +267,57 @@ header h1 {
 }
 
 .sources-content {
-    padding: 0 0.5rem 0.25rem 1.5rem;
+    padding: 0.5rem 0.5rem 0.5rem 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+/* Source Badge Styles */
+.source-badge {
+    display: inline-block;
+    padding: 0.4rem 0.75rem;
+    background: rgba(37, 99, 235, 0.1);
+    border: 1px solid var(--primary-color);
+    border-radius: 6px;
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    line-height: 1.4;
+}
+
+.source-badge:hover {
+    background: rgba(37, 99, 235, 0.2);
+    border-color: var(--primary-hover);
+    color: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.source-badge:visited {
+    border-color: #9333ea;
+    color: #9333ea;
+    background: rgba(147, 51, 234, 0.1);
+}
+
+.source-badge:active {
+    transform: translateY(0);
+}
+
+/* Plain source badge (no link) */
+.source-badge-plain {
+    background: rgba(148, 163, 184, 0.1);
+    border-color: var(--text-secondary);
     color: var(--text-secondary);
+    cursor: default;
+}
+
+.source-badge-plain:hover {
+    transform: none;
+    box-shadow: none;
 }
 
 /* Markdown formatting styles */
