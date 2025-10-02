@@ -7,11 +7,12 @@ from pathlib import Path
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
-from unittest.mock import Mock
-
 import pytest
+from unittest.mock import MagicMock, Mock
+
 from models import Course, CourseChunk, Lesson
 from vector_store import SearchResults
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture
@@ -201,3 +202,67 @@ def sample_anthropic_response():
         "MockToolUseBlock": MockToolUseBlock,
         "MockResponse": MockResponse,
     }
+
+
+@pytest.fixture
+def mock_rag_system():
+    """Create a mock RAG system for API testing"""
+    mock_system = MagicMock()
+    mock_system.query.return_value = (
+        "Python is a high-level programming language known for its simple syntax.",
+        [{"course_title": "Introduction to Python Programming", "lesson_number": "1"}]
+    )
+    mock_system.get_course_analytics.return_value = {
+        "total_courses": 2,
+        "course_titles": ["Introduction to Python Programming", "Advanced Python"]
+    }
+    mock_system.session_manager.create_session.return_value = "test-session-123"
+    mock_system.session_manager.clear_session.return_value = None
+    return mock_system
+
+
+@pytest.fixture
+def test_client(mock_rag_system):
+    """Create a FastAPI test client with mocked RAG system"""
+    from fastapi import FastAPI
+    from pydantic import BaseModel
+    from typing import List, Optional, Dict
+
+    # Create a test app without static file mounting
+    app = FastAPI(title="Course Materials RAG System - Test")
+
+    # Pydantic models
+    class QueryRequest(BaseModel):
+        query: str
+        session_id: Optional[str] = None
+
+    class QueryResponse(BaseModel):
+        answer: str
+        sources: List[Dict[str, Optional[str]]]
+        session_id: str
+
+    class CourseStats(BaseModel):
+        total_courses: int
+        course_titles: List[str]
+
+    # API endpoints using mock_rag_system
+    @app.post("/api/query", response_model=QueryResponse)
+    async def query_documents(request: QueryRequest):
+        session_id = request.session_id or mock_rag_system.session_manager.create_session()
+        answer, sources = mock_rag_system.query(request.query, session_id)
+        return QueryResponse(answer=answer, sources=sources, session_id=session_id)
+
+    @app.get("/api/courses", response_model=CourseStats)
+    async def get_course_stats():
+        analytics = mock_rag_system.get_course_analytics()
+        return CourseStats(
+            total_courses=analytics["total_courses"],
+            course_titles=analytics["course_titles"]
+        )
+
+    @app.delete("/api/session/{session_id}")
+    async def delete_session(session_id: str):
+        mock_rag_system.session_manager.clear_session(session_id)
+        return {"success": True}
+
+    return TestClient(app)
